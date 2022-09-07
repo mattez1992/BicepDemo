@@ -8,14 +8,14 @@
 @maxLength(4)
 param environmentName string = 'Test'
 
-param appName string = 'devops22-mattias'
+param appName string = 'devops22-mattias-azurecli'
 param location string = resourceGroup().location
 param costing string = 'nackademin'
 
 var dbAdmin = 'devops22admin'
 var dbPassword = 'Test123!'
-var sqlDbName = 'sqldb-${appName}-${toLower(environmentName)}'
-var sqlServerName = 'sql-devops22-mattias'
+var sqlDbName = 'sqldb-${appName}-${toLower(environmentName)}-azurecli'
+var sqlServerName = 'sql-devops22-mattias-azurecli'
 
 module appModule 'app.bicep' = {
   name: 'appDeploy'

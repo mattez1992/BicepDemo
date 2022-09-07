@@ -21,7 +21,7 @@ param storageName string
 
 @description('Storage SKU')
 param storageSkuName string = 'Standard_LRS'
-var storageNamePrefix = replace(storageName, 'app', 'st' )
+var storageNamePrefix = replace(storageName, 'app', 'sto' )
 var storageNameCleaned = replace(storageNamePrefix, '-', '')
 
 resource storage 'Microsoft.Storage/storageAccounts@2021-04-01' = {
