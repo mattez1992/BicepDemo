@@ -10,11 +10,21 @@ param sqlDbName string = 'db-name'
 param sqlServerName string = 'sql-server-name'
 
 var appFullName = 'app-${appName}-${toLower(environmentName)}'
-var planName = 'plan-devops22'
-
+var planName = 'plan-devops22-bicep'
+var shouldRestrictIp = toLower(environmentName) == 'test'
 var skuName = 'F1'
 var skuCapacity = 1
 
+resource kv 'Microsoft.KeyVault/vaults@2019-09-01' existing = {
+  name: 'kv-bicep-test'
+}
+resource secret 'Microsoft.KeyVault/vaults/secrets@2019-09-01'= {
+  name: 'TestConnection'
+  parent:kv
+  properties:{
+    value:'Data Source=tcp:${sqlServerName}.database.windows.net,1433;Initial Catalog=${sqlDbName};User Id=${dbAdmin};Password=${dbPassword})}'
+  }
+}
 resource appPlan 'Microsoft.Web/serverfarms@2022-03-01' = {
   location: location
   name: planName
@@ -39,6 +49,9 @@ resource app 'Microsoft.Web/sites@2022-03-01' = {
   ]
   location: location
   name: appFullName
+  identity:{
+      type:'SystemAssigned'
+  }
   properties: {
     enabled: true
     serverFarmId: appPlan.id
@@ -48,6 +61,14 @@ resource app 'Microsoft.Web/sites@2022-03-01' = {
     siteConfig: {
       minTlsVersion: '1.2'
       http20Enabled: true
+      ipSecurityRestrictions: shouldRestrictIp ? [
+        {
+          action: 'Allow'
+          ipAddress: '80.216.164.225/32'
+          name: 'Home'
+          priority: 100
+        }
+      ] : []
       ftpsState: 'Disabled'
       remoteDebuggingEnabled: false
       appSettings: [
@@ -62,8 +83,9 @@ resource app 'Microsoft.Web/sites@2022-03-01' = {
       ]
       connectionStrings: [
         {
-          name: 'OrdersConnectionString'
-          connectionString: 'Data Source=tcp:${sqlServerName}.database.windows.net,1433;Initial Catalog=${sqlDbName};User Id=${dbAdmin};Password=${dbPassword}'
+          name: 'TestConnection'
+          // connectionString: 'Data Source=tcp:${sqlServerName}.database.windows.net,1433;Initial Catalog=${sqlDbName};User Id=${dbAdmin};Password=${dbPassword}'
+          connectionString:'@Microsoft.KeyVault(SecretUri=${secret.properties.secretUri})'
           type: 'SQLAzure'
         }
       ]
@@ -73,7 +95,7 @@ resource app 'Microsoft.Web/sites@2022-03-01' = {
     costing: costing
   }
 }
-
+output appObjectId string = app.identity.principalId
 module appInsightsModule 'appinsights.bicep' = {
   name: 'appInsightsDeploy'
   params: {

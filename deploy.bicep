@@ -6,16 +6,20 @@
 ])
 @minLength(2)
 @maxLength(4)
-param environmentName string = 'Test'
+param environmentName string = 'Prod'
 
-param appName string = 'devops22-mattias-azurecli'
+param appName string = 'dev-mattias-bic'
 param location string = resourceGroup().location
 param costing string = 'nackademin'
 
 var dbAdmin = 'devops22admin'
-var dbPassword = 'Test123!'
-var sqlDbName = 'sqldb-${appName}-${toLower(environmentName)}-azurecli'
-var sqlServerName = 'sql-devops22-mattias-azurecli'
+
+var sqlDbName = 'bicdb-${appName}-${toLower(environmentName)}-${environmentName}'
+var sqlServerName = 'sql-dev-mattias-bic'
+
+resource kv 'Microsoft.KeyVault/vaults@2019-09-01' existing = {
+  name: 'kv-bicep-test'
+}
 
 module appModule 'app.bicep' = {
   name: 'appDeploy'
@@ -24,7 +28,7 @@ module appModule 'app.bicep' = {
     location: location
     appName: appName
     dbAdmin: dbAdmin
-    dbPassword: dbPassword
+    dbPassword: kv.getSecret('dbPassword')
     sqlDbName: sqlDbName
     sqlServerName: sqlServerName
     costing: costing
@@ -36,9 +40,30 @@ module sqlServerModule 'sqlserver.bicep' = {
   params: {
     location: location
     dbAdmin: dbAdmin
-    dbPassword: dbPassword
+    dbPassword: kv.getSecret('dbPassword')
     sqlDbName: sqlDbName
     sqlServerName: sqlServerName
     costing: costing
+  }
+}
+
+resource accessPolicies 'Microsoft.KeyVault/vaults/accessPolicies@2019-09-01' = {
+  name: '${kv.name}/add'
+  dependsOn:[
+    appModule
+  ]
+  properties: {
+    accessPolicies: [
+      {
+        objectId: appModule.outputs.appObjectId
+        tenantId: subscription().tenantId
+        permissions: {
+          secrets: [
+            'get'
+            'list'
+          ]
+        }
+      }
+    ]
   }
 }
